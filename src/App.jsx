@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./components/ui/card";
 import { Trash2, Plus, ArrowLeft, Save, LayoutGrid } from "lucide-react";
 
 function App() {
   const [trabajos, setTrabajos] = useState(() => {
-    const guardados = localStorage.getItem('trabajos_cortes_shadcn');
+    const guardados = localStorage.getItem('trabajos_cortes_dark_v1');
     return guardados ? JSON.parse(guardados) : [];
   });
   const [vista, setVista] = useState('lista'); 
@@ -15,10 +12,9 @@ function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('trabajos_cortes_shadcn', JSON.stringify(trabajos));
+    localStorage.setItem('trabajos_cortes_dark_v1', JSON.stringify(trabajos));
   }, [trabajos]);
 
-  // --- ALGORITMO DE BIN PACKING 2D ---
   class Nodo {
     constructor(x, y, w, h) {
       this.x = x; this.y = y; this.w = w; this.h = h;
@@ -33,9 +29,7 @@ function App() {
       let nodo = buscarNodo(nodoRaiz.derecha, w, h);
       if (nodo) return nodo;
       return buscarNodo(nodoRaiz.abajo, w, h);
-    } else if (w <= nodoRaiz.w && h <= nodoRaiz.h) {
-      return nodoRaiz;
-    }
+    } else if (w <= nodoRaiz.w && h <= nodoRaiz.h) return nodoRaiz;
     return null;
   };
 
@@ -52,24 +46,23 @@ function App() {
     const margen = parseFloat(trabajoActual.margen) || 0;
 
     if (!pW || !pH) return alert("Ingresa las dimensiones de la plancha base.");
-    if (trabajoActual.cortes.length === 0) return alert("Agrega al menos una pieza para cortar.");
+    if (trabajoActual.cortes.length === 0) return alert("Agrega al menos una pieza.");
 
     let piezasAcomodar = [];
     trabajoActual.cortes.forEach((corte, index) => {
       if (!corte.ancho || !corte.alto || !corte.cantidad) return;
-      const wReal = parseFloat(corte.ancho) + margen;
-      const hReal = parseFloat(corte.alto) + margen;
-      const qty = parseInt(corte.cantidad);
-
-      for (let i = 0; i < qty; i++) {
+      for (let i = 0; i < parseInt(corte.cantidad); i++) {
         piezasAcomodar.push({ 
-          id: `${index}-${i}`, w: wReal, h: hReal, wOriginal: parseFloat(corte.ancho), hOriginal: parseFloat(corte.alto) 
+          id: `${index}-${i}`, 
+          w: parseFloat(corte.ancho) + margen, 
+          h: parseFloat(corte.alto) + margen, 
+          wOriginal: parseFloat(corte.ancho), 
+          hOriginal: parseFloat(corte.alto) 
         });
       }
     });
 
     piezasAcomodar.sort((a, b) => (b.w * b.h) - (a.w * a.h));
-
     let planchasUtilizadas = [];
     let areaPuraUsada = 0;
 
@@ -104,8 +97,7 @@ function App() {
              nuevaPlancha.piezasColocadas.push({ ...pieza, x: nodo.x, y: nodo.y, rotada: true });
              planchasUtilizadas.push(nuevaPlancha);
           } else {
-             alert(`La pieza de ${pieza.wOriginal}x${pieza.hOriginal} (con margen) es más grande que la plancha.`);
-             return;
+             return alert(`La pieza de ${pieza.wOriginal}x${pieza.hOriginal} (con margen) excede la plancha.`);
           }
         }
       }
@@ -113,15 +105,16 @@ function App() {
     });
 
     const areaTotalPlanchas = planchasUtilizadas.length * pW * pH;
-    const porcentaje = planchasUtilizadas.length > 0 ? ((areaPuraUsada / areaTotalPlanchas) * 100).toFixed(2) : 0;
-
     setTrabajoActual({
       ...trabajoActual,
-      resultados: { planchasNecesarias: planchasUtilizadas.length, porcentajeUso: porcentaje, mapaPlanchas: planchasUtilizadas }
+      resultados: { 
+        planchasNecesarias: planchasUtilizadas.length, 
+        porcentajeUso: planchasUtilizadas.length > 0 ? ((areaPuraUsada / areaTotalPlanchas) * 100).toFixed(2) : 0, 
+        mapaPlanchas: planchasUtilizadas 
+      }
     });
   };
 
-  // --- MANEJO DE ESTADOS ---
   const guardarTrabajo = () => {
     if (!trabajoActual.nombre) return alert("Ponle un nombre al trabajo");
     if (trabajoActual.id) {
@@ -138,41 +131,44 @@ function App() {
     setTrabajoActual({ ...trabajoActual, cortes: nuevos });
   };
 
-  const eliminarTrabajo = (id) => setTrabajos(trabajos.filter(t => t.id !== id));
+  // --- CLASES DE TAILWIND (MODO OSCURO AJUSTADO) ---
+  const inputClass = "flex h-10 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
+  const btnPrimary = "inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 transition-colors w-full";
+  const btnSecondary = "inline-flex items-center justify-center rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-700 transition-colors w-full";
+  const btnDanger = "inline-flex items-center justify-center rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700 transition-colors";
+  const cardClass = "rounded-xl border border-slate-800 bg-slate-900 shadow-xl p-6 transition-all";
 
-  // --- VISTA: LISTA DE TRABAJOS ---
+  // Asegurar fondo oscuro en toda la página
+  useEffect(() => {
+    document.body.className = "bg-slate-950 text-slate-100";
+  }, []);
+
   if (vista === 'lista') {
     return (
-      <div className="max-w-5xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Mis Trabajos de Corte</h1>
-          <Button onClick={() => { setTrabajoActual({ id: null, nombre: '', planchaAncho: 244, planchaAlto: 122, margen: 0.5, cortes: [], resultados: null }); setVista('editor'); }}>
-            <Plus className="mr-2 h-4 w-4" /> Nuevo Trabajo
-          </Button>
+      <div className="max-w-5xl mx-auto p-6 font-sans">
+        <div className="flex justify-between items-center mb-10">
+          <h1 className="text-4xl font-extrabold text-white tracking-tight">Mis Trabajos de Corte</h1>
+          <button className={`${btnPrimary} w-auto`} onClick={() => { setTrabajoActual({ id: null, nombre: '', planchaAncho: 244, planchaAlto: 122, margen: 0.5, cortes: [], resultados: null }); setVista('editor'); }}>
+            <Plus className="mr-2 h-5 w-5" /> Nuevo Trabajo
+          </button>
         </div>
-        
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {trabajos.map(t => (
-            <Card key={t.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="flex items-center justify-between p-6">
-                <div>
-                  <h3 className="text-xl font-semibold text-slate-800">{t.nombre}</h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Material: {t.planchaAncho}x{t.planchaAlto} cm | Planchas: {t.resultados?.planchasNecesarias || 0}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => { setTrabajoActual(t); setVista('editor'); }}>Abrir</Button>
-                  <Button variant="destructive" size="icon" onClick={() => eliminarTrabajo(t.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <div key={t.id} className={`${cardClass} flex justify-between items-center hover:border-blue-700 transition-all hover:-translate-y-1`}>
+              <div>
+                <h3 className="text-2xl font-semibold text-white">{t.nombre}</h3>
+                <p className="text-slate-400 text-base mt-1">Material: {t.planchaAncho}x{t.planchaAlto} cm | Planchas: {t.resultados?.planchasNecesarias || 0}</p>
+              </div>
+              <div className="flex gap-3">
+                <button className="border border-slate-600 px-5 py-2.5 rounded-md hover:bg-slate-800 hover:text-white transition-colors" onClick={() => { setTrabajoActual(t); setVista('editor'); }}>Abrir</button>
+                <button className={btnDanger} onClick={() => setTrabajos(trabajos.filter(x => x.id !== t.id))}><Trash2 className="h-5 w-5" /></button>
+              </div>
+            </div>
           ))}
           {trabajos.length === 0 && (
-            <div className="text-center py-12 text-slate-500 border-2 border-dashed rounded-lg">
-              No tienes trabajos guardados aún. Haz clic en "Nuevo Trabajo" para empezar.
+            <div className="text-center py-20 text-slate-500 border-4 border-dashed border-slate-800 rounded-2xl bg-slate-900/50">
+               <LayoutGrid className="h-16 w-16 mx-auto mb-6 text-slate-700"/>
+              No tienes trabajos guardados aún. <br/> Haz clic en "+ Nuevo Trabajo" para empezar.
             </div>
           )}
         </div>
@@ -180,141 +176,102 @@ function App() {
     );
   }
 
-  // Ancho base para dibujar la plancha en pantalla
-  const anchoMaximoDibujo = 600; 
-  const escala = trabajoActual.planchaAncho ? anchoMaximoDibujo / trabajoActual.planchaAncho : 1;
+  const anchoMax = 700; 
+  const escala = trabajoActual.planchaAncho ? anchoMax / trabajoActual.planchaAncho : 1;
 
-  // --- VISTA: EDITOR (DASHBOARD) ---
   return (
-    <div className="max-w-[1400px] mx-auto p-6">
-      <Button variant="ghost" className="mb-6" onClick={() => setVista('lista')}>
+    <div className="max-w-[1450px] mx-auto p-6 font-sans">
+      <button className="flex items-center text-sm text-slate-400 hover:text-white mb-8 font-medium transition-colors" onClick={() => setVista('lista')}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Mis Trabajos
-      </Button>
+      </button>
       
-      <div className="grid lg:grid-cols-12 gap-8">
-        
-        {/* COLUMNA IZQUIERDA: CONTROLES */}
-        <div className="lg:col-span-4 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{trabajoActual.id ? 'Editar Proyecto' : 'Nuevo Proyecto'}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Nombre del Proyecto</label>
-                <Input value={trabajoActual.nombre} onChange={e => setTrabajoActual({...trabajoActual, nombre: e.target.value})} placeholder="Ej. Mueble de Cocina" />
+      <div className="grid lg:grid-cols-12 gap-10">
+        <div className="lg:col-span-4 space-y-8">
+          <div className={cardClass}>
+            <h3 className="text-xl font-bold mb-6 text-white border-b border-slate-800 pb-3">{trabajoActual.id ? 'Editar' : 'Nuevo'} Proyecto</h3>
+            <div className="space-y-2 mb-6">
+                <label className="text-sm font-medium text-slate-300">Nombre del Proyecto</label>
+                <input className={inputClass} value={trabajoActual.nombre} onChange={e => setTrabajoActual({...trabajoActual, nombre: e.target.value})} placeholder="Ej. Mueble de Cocina" />
+            </div>
+            
+            <h4 className="font-semibold text-base text-slate-100 mb-3 pt-4 border-t border-slate-800">Material Base</h4>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-400 uppercase">Ancho (cm)</label>
+                  <input className={inputClass} type="number" placeholder="Ej. 244" value={trabajoActual.planchaAncho} onChange={e => setTrabajoActual({...trabajoActual, planchaAncho: e.target.value})} />
               </div>
-
-              <div className="pt-4 border-t space-y-4">
-                <h3 className="font-medium text-slate-700">Material Base</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500 uppercase">Ancho (cm)</label>
-                    <Input type="number" value={trabajoActual.planchaAncho} onChange={e => setTrabajoActual({...trabajoActual, planchaAncho: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500 uppercase">Alto (cm)</label>
-                    <Input type="number" value={trabajoActual.planchaAlto} onChange={e => setTrabajoActual({...trabajoActual, planchaAlto: e.target.value})} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs text-slate-500 uppercase">Margen de Sierra (cm)</label>
-                  <Input type="number" step="0.1" value={trabajoActual.margen} onChange={e => setTrabajoActual({...trabajoActual, margen: e.target.value})} />
-                </div>
+              <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-400 uppercase">Alto (cm)</label>
+                  <input className={inputClass} type="number" placeholder="Ej. 122" value={trabajoActual.planchaAlto} onChange={e => setTrabajoActual({...trabajoActual, planchaAlto: e.target.value})} />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-400 uppercase">Margen de corte / Disco (cm)</label>
+                <input className={inputClass} type="number" step="0.1" placeholder="Ej. 0.4" value={trabajoActual.margen} onChange={e => setTrabajoActual({...trabajoActual, margen: e.target.value})} />
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Piezas a Cortar</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {trabajoActual.cortes.map((corte, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <Input type="number" placeholder="Ancho" value={corte.ancho} onChange={e => actualizarCorte(i, 'ancho', e.target.value)} />
-                  <Input type="number" placeholder="Alto" value={corte.alto} onChange={e => actualizarCorte(i, 'alto', e.target.value)} />
-                  <Input type="number" placeholder="Cant." value={corte.cantidad} onChange={e => actualizarCorte(i, 'cantidad', e.target.value)} />
-                  <Button variant="destructive" size="icon" onClick={() => setTrabajoActual({...trabajoActual, cortes: trabajoActual.cortes.filter((_, idx) => idx !== i)})}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" className="w-full mt-2" onClick={() => setTrabajoActual({...trabajoActual, cortes: [...trabajoActual.cortes, { ancho: '', alto: '', cantidad: 1 }]})}>
-                <Plus className="mr-2 h-4 w-4" /> Agregar Pieza
-              </Button>
-            </CardContent>
-          </Card>
+          <div className={cardClass}>
+            <h3 className="text-xl font-bold mb-6 text-white border-b border-slate-800 pb-3">Piezas a Cortar</h3>
+            <div className="space-y-4">
+                {trabajoActual.cortes.map((corte, i) => (
+                  <div key={i} className="flex gap-2.5 items-end bg-slate-800/50 p-3 rounded-lg border border-slate-800">
+                    <div className="flex-1 space-y-1">
+                        <label className="text-xs font-medium text-slate-400">Ancho</label>
+                        <input className={inputClass} type="number" placeholder="An" value={corte.ancho} onChange={e => actualizarCorte(i, 'ancho', e.target.value)} />
+                    </div>
+                     <div className="flex-1 space-y-1">
+                         <label className="text-xs font-medium text-slate-400">Alto</label>
+                        <input className={inputClass} type="number" placeholder="Al" value={corte.alto} onChange={e => actualizarCorte(i, 'alto', e.target.value)} />
+                    </div>
+                     <div className="w-20 space-y-1">
+                         <label className="text-xs font-medium text-slate-400">Cant.</label>
+                        <input className={inputClass} type="number" placeholder="Cant" value={corte.cantidad} onChange={e => actualizarCorte(i, 'cantidad', e.target.value)} />
+                    </div>
+                    <button className={`${btnDanger} self-center h-10 mt-5`} onClick={() => setTrabajoActual({...trabajoActual, cortes: trabajoActual.cortes.filter((_, idx) => idx !== i)})}><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                ))}
+            </div>
+            <button className="border border-slate-700 w-full py-3 mt-4 rounded-md hover:bg-slate-800 text-sm font-semibold transition-colors text-slate-200" onClick={() => setTrabajoActual({...trabajoActual, cortes: [...trabajoActual.cortes, { ancho: '', alto: '', cantidad: 1 }]})}>+ Agregar Pieza</button>
+          </div>
 
-          <div className="space-y-3">
-            <Button className="w-full h-12 text-md" onClick={calcularResultadosFisicos}>
-              <LayoutGrid className="mr-2 h-5 w-5" /> Calcular Cortes
-            </Button>
-            <Button variant="secondary" className="w-full" onClick={guardarTrabajo}>
-              <Save className="mr-2 h-4 w-4" /> Guardar Trabajo
-            </Button>
+          <div className="space-y-4">
+              <button className={`${btnPrimary} h-14 text-base`} onClick={calcularResultadosFisicos}><LayoutGrid className="mr-2 h-6 w-6" /> Calcular Cortes Físicos</button>
+              <button className={btnSecondary} onClick={guardarTrabajo}><Save className="mr-2 h-5 w-5" /> Guardar Proyecto</button>
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: RESULTADOS VISUALES */}
         <div className="lg:col-span-8">
-          <Card className="h-full min-h-[600px] bg-slate-50/50">
-            <CardHeader>
-              <CardTitle>Resultados y Mapa de Corte</CardTitle>
-              <CardDescription>Genera los cálculos para ver la disposición de las piezas.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!trabajoActual.resultados ? (
-                <div className="flex items-center justify-center h-64 text-slate-400">
-                  Ingresa tus dimensiones y calcula para ver el mapa.
+          <div className={`${cardClass} bg-slate-900 min-h-[600px] border-2 border-slate-800`}>
+            <h3 className="text-2xl font-bold mb-8 text-white">Mapa de Corte y Resultados</h3>
+            {!trabajoActual.resultados ? (
+              <div className="text-center text-slate-600 mt-32 border-4 border-dashed border-slate-800 rounded-2xl py-16 bg-slate-950">
+                  <LayoutGrid className="h-20 w-20 mx-auto mb-6 text-slate-800"/>
+                  Ingresa las piezas y haz clic en "Calcular Cortes Físicos" <br/> para visualizar la distribución aquí.
+              </div>
+            ) : (
+              <div>
+                <div className="grid grid-cols-2 gap-6 mb-10">
+                  <div className="bg-blue-950/50 border border-blue-900 p-6 rounded-xl shadow-inner"><p className="text-base text-blue-300 font-semibold uppercase tracking-wider">Planchas Necesarias</p><p className="text-5xl font-extrabold text-white mt-3">{trabajoActual.resultados.planchasNecesarias}</p></div>
+                  <div className="bg-emerald-950/50 border border-emerald-900 p-6 rounded-xl shadow-inner"><p className="text-base text-emerald-300 font-semibold uppercase tracking-wider">% Aprovechamiento</p><p className="text-5xl font-extrabold text-white mt-3">{trabajoActual.resultados.porcentajeUso}%</p></div>
                 </div>
-              ) : (
-                <div className="space-y-8">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card className="bg-blue-50 border-blue-100">
-                      <CardContent className="p-6">
-                        <p className="text-sm text-blue-600 font-medium uppercase tracking-wide">Planchas Necesarias</p>
-                        <p className="text-4xl font-bold text-blue-900 mt-2">{trabajoActual.resultados.planchasNecesarias}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-emerald-50 border-emerald-100">
-                      <CardContent className="p-6">
-                        <p className="text-sm text-emerald-600 font-medium uppercase tracking-wide">Aprovechamiento</p>
-                        <p className="text-4xl font-bold text-emerald-900 mt-2">{trabajoActual.resultados.porcentajeUso}%</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <div className="space-y-6">
-                    {trabajoActual.resultados.mapaPlanchas.map((plancha, index) => (
-                      <div key={index} className="space-y-2">
-                        <h4 className="font-semibold text-slate-700">Plancha {index + 1}</h4>
-                        <div 
-                          className="relative bg-slate-200 border-2 border-slate-400 rounded overflow-hidden shadow-inner" 
-                          style={{ width: anchoMaximoDibujo, height: trabajoActual.planchaAlto * escala }}
-                        >
-                          {plancha.piezasColocadas.map(p => {
-                            const espacioWidth = (p.rotada ? p.h : p.w) * escala;
-                            const espacioHeight = (p.rotada ? p.w : p.h) * escala;
-                            const piezaWidth = (p.rotada ? p.hOriginal : p.wOriginal) * escala;
-                            const piezaHeight = (p.rotada ? p.wOriginal : p.hOriginal) * escala;
-
-                            return (
-                              <div key={p.id} className="absolute border border-dashed border-slate-400 bg-transparent" style={{ left: p.x * escala, top: p.y * escala, width: espacioWidth, height: espacioHeight }}>
-                                <div className="absolute top-0 left-0 bg-amber-500 border border-amber-600 text-white text-xs font-bold flex items-center justify-center shadow-sm overflow-hidden" style={{ width: piezaWidth, height: piezaHeight }}>
-                                  {p.wOriginal}x{p.hOriginal} {p.rotada ? '⟳' : ''}
-                                </div>
-                              </div>
-                            );
-                          })}
+                {trabajoActual.resultados.mapaPlanchas.map((plancha, i) => (
+                  <div key={i} className="mb-10 bg-slate-950 p-6 rounded-2xl border border-slate-800 shadow-lg">
+                    <h4 className="font-bold text-lg text-white mb-4">Plancha {i + 1} ({trabajoActual.planchaAncho}x{trabajoActual.planchaAlto} cm)</h4>
+                    <div className="relative bg-slate-800 border-2 border-slate-700 rounded-md overflow-hidden shadow-inner" style={{ width: anchoMax, height: trabajoActual.planchaAlto * escala }}>
+                      {plancha.piezasColocadas.map(p => (
+                        <div key={p.id} className="absolute border-2 border-dashed border-slate-500 bg-slate-800" style={{ left: p.x * escala, top: p.y * escala, width: (p.rotada ? p.h : p.w) * escala, height: (p.rotada ? p.w : p.h) * escala }}>
+                          <div className="absolute top-0 left-0 bg-amber-500 border-2 border-amber-700 text-white text-[11px] font-extrabold flex items-center justify-center overflow-hidden shadow" style={{ width: (p.rotada ? p.hOriginal : p.wOriginal) * escala, height: (p.rotada ? p.wOriginal : p.hOriginal) * escala }}>
+                            <span className="leading-tight text-center">{p.wOriginal}x{p.hOriginal} {p.rotada ? '⟳' : ''}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
